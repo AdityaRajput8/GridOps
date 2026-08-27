@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     QDRANT_URL: str
     QDRANT_API_KEY: str
     COLLECTION_NAME: str = "inventory_snapshots"
+    GEMINI_API_KEY: str
     # Kafka Credentials
     KAFKA_BROKER: str
     KAFKA_USERNAME: str
