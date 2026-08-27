@@ -5,6 +5,11 @@ class Settings(BaseSettings):
     QDRANT_URL: str
     QDRANT_API_KEY: str
     COLLECTION_NAME: str = "inventory_snapshots"
+    # Kafka Credentials
+    KAFKA_BROKER: str
+    KAFKA_USERNAME: str
+    KAFKA_PASSWORD: str
+    KAFKA_TOPIC: str = "inventory-events"
 
     # This tells Pydantic to look for the .env file
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

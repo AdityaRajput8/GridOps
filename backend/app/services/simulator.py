@@ -2,6 +2,7 @@ import random
 import logging
 from typing import List
 from app.schemas.inventory import InventoryEvent
+from app.services.kafka_producer import publish_inventory_event, producer
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,20 @@ def generate_random_event() -> InventoryEvent:
         reorder_threshold=sku["threshold"],
         avg_daily_sales=sku["avg_sales"]
     )
-
 def generate_batch_events(batch_size: int = 5) -> List[InventoryEvent]:
-    """Generates a batch of events to be pushed to the broker."""
+    """Generates a batch of events and pushes them to Kafka."""
     events = [generate_random_event() for _ in range(batch_size)]
+    
     for event in events:
-        logger.info(f"Simulated Event: {event.store_name} | {event.sku_name} | Stock: {event.current_stock}")
+        logger.info(f"Simulating & Pushing Event: {event.store_name} | {event.sku_name} | Stock: {event.current_stock}")
+        
+        # Convert Pydantic model to a standard dictionary (mode='json' handles datetime conversion automatically)
+        event_dict = event.model_dump(mode='json')
+        
+        # Push to Aiven Kafka
+        publish_inventory_event(event_dict)
+    
+    # Ensure all messages in this batch are sent over the network
+    producer.flush()
+    
     return events
