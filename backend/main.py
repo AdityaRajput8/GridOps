@@ -1,3 +1,4 @@
+from app.db.qdrant import init_qdrant
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import logging
@@ -20,6 +21,8 @@ def scheduled_inventory_job():
 async def lifespan(app: FastAPI):
     # Startup actions
     logger.info("Starting up GridOps backend...")
+    # Initialize Qdrant collection(Vector db)
+    init_qdrant()
     
     # Start the simulator background job
     scheduler.add_job(scheduled_inventory_job, 'interval', seconds=30)
