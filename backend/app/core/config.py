@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     KAFKA_USERNAME: str
     KAFKA_PASSWORD: str
     KAFKA_TOPIC: str = "inventory-events"
+    # Upstash Semantic Cache
+    UPSTASH_VECTOR_REST_URL: str
+    UPSTASH_VECTOR_REST_TOKEN: str
+    # Supabase Observability
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
 
     # This tells Pydantic to look for the .env file
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
