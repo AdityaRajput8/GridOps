@@ -1,14 +1,22 @@
-# Virtual Environments
-venv/
-.venv/
-
-# Python Cache
+# Python / Backend
 __pycache__/
+venv/
+env/
 *.pyc
+.pytest_cache/
 
-# Environment & Secrets
+# Node / Frontend
+node_modules/
+.next/
+out/
+build/
+.npm/
+
+# Environment Variables (CRITICAL)
 .env
-.env.*
+.env.local
+.env.*.local
 
-# OS files
+# OS Files
 .DS_Store
+Thumbs.db
