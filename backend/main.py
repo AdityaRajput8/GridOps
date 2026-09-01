@@ -140,30 +140,42 @@ async def websocket_copilot(websocket: WebSocket):
             await websocket.send_json({"type": "trace", "step": "Router Agent", "detail": "intent: inventory_query", "latency": "14ms"})
             await asyncio.sleep(0.2)
 
-            # 2. Semantic Cache Lookup
-            query_vector = get_query_embedding(user_message)
+            # 2. Semantic Cache Lookup (with Error Handling)
             cache_hit = False
             cached_response = None
+            query_vector = None
+            rate_limited = False
 
             try:
+                query_vector = get_query_embedding(user_message)
                 cache_results = cache_index.query(vector=query_vector, top_k=1, include_metadata=True)
                 if cache_results and cache_results[0].score >= 0.97:
                     cached_response = cache_results[0].metadata.get("response")
                     cache_hit = True
             except Exception as e:
-                logger.warning(f"Cache lookup error: {e}")
+                logger.warning(f"Embedding/Cache error: {e}")
+                if "429" in str(e) or "Quota" in str(e):
+                    rate_limited = True
+
+            # If Gemini blocks the Embedding API, fail gracefully
+            if rate_limited:
+                await websocket.send_json({"type": "trace", "step": "System Error", "detail": "Gemini API Quota Exceeded", "latency": "0ms"})
+                error_msg = "⚠️ **API Rate Limit Exceeded:** The system has reached its requests-per-minute quota for the Google Gemini free tier. Please wait about 60 seconds and try your query again."
+                for w in error_msg.split(" "):
+                    await websocket.send_json({"type": "token", "content": w + " "})
+                    await asyncio.sleep(0.03)
+                await websocket.send_json({"type": "done"})
+                continue
 
             if cache_hit and cached_response:
                 latency = int((time.time() - start_time) * 1000)
                 await websocket.send_json({"type": "trace", "step": "Semantic Cache", "detail": "⚡ Cache Hit (Upstash Vector)", "latency": f"{latency}ms"})
                 
-                # Stream cached text in tokens
                 chunks = str(cached_response).split(" ")
                 for ch in chunks:
                     await websocket.send_json({"type": "token", "content": ch + " "})
                     await asyncio.sleep(0.02)
 
-                # Observability Log to Supabase
                 try:
                     supabase.table("query_logs").insert({
                         "id": str(uuid.uuid4()),
@@ -185,13 +197,12 @@ async def websocket_copilot(websocket: WebSocket):
             await asyncio.sleep(0.1)
             await websocket.send_json({"type": "trace", "step": "Synthesizer Agent", "detail": "Generating inventory analysis...", "latency": ""})
 
-            # Run LangGraph Agent
+            # Run LangGraph Agent (with Error Handling)
             try:
                 inputs = {"messages": [("system", system_prompt), ("user", user_message)]}
                 result = await asyncio.to_thread(inventory_agent.invoke, inputs)
                 raw_content = result["messages"][-1].content
                 
-                # Normalize output to a single string
                 if isinstance(raw_content, list):
                     text_parts = []
                     for part in raw_content:
@@ -206,7 +217,11 @@ async def websocket_copilot(websocket: WebSocket):
                     agent_response = str(raw_content)
 
             except Exception as ex:
-                agent_response = f"Inventory Status Report: Indiranagar dark stores maintain healthy batches for staple SKUs. Immediate replenishment recommended for dairy items due to elevated velocity. (System Note: {str(ex)})"
+                logger.error(f"Agent Execution Error: {ex}")
+                if "429" in str(ex) or "Quota" in str(ex):
+                    agent_response = "⚠️ **API Rate Limit Exceeded:** The system has reached its requests-per-minute quota for the Google Gemini free tier. Please wait about 60 seconds and try your query again."
+                else:
+                    agent_response = f"**Fallback Alert:** Indiranagar dark stores maintain healthy batches for staple SKUs. Immediate replenishment recommended for dairy items. *(System Note: {str(ex)})*"
 
             # 4. Stream Tokens to UI
             words = agent_response.split(" ")
@@ -216,11 +231,12 @@ async def websocket_copilot(websocket: WebSocket):
 
             latency = int((time.time() - start_time) * 1000)
 
-            # Write to Upstash Cache
-            try:
-                cache_index.upsert(vectors=[(str(uuid.uuid4()), query_vector, {"query": user_message, "response": agent_response})])
-            except Exception:
-                pass
+            # Write to Upstash Cache only if it wasn't an error message
+            if "API Rate Limit Exceeded" not in agent_response and query_vector:
+                try:
+                    cache_index.upsert(vectors=[(str(uuid.uuid4()), query_vector, {"query": user_message, "response": agent_response})])
+                except Exception:
+                    pass
 
             # Write to Supabase Observability
             try:

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Activity, Terminal, CheckCircle2, History, RefreshCw, Zap } from "lucide-react";
+import { Bot, Send, Activity, Terminal, CheckCircle2, History, RefreshCw, Zap, ArrowRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 interface TraceStep {
@@ -20,25 +20,25 @@ interface TraceStep {
 interface Message {
   role: "user" | "ai";
   content: string;
-  traces?: TraceStep[];
+  traces: TraceStep[];
 }
 
 export default function CopilotPage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [currentTraces, setCurrentTraces] = useState<TraceStep[]>([]);
+  const [liveTraces, setLiveTraces] = useState<TraceStep[]>([]);
   const [pastQueries, setPastQueries] = useState<any[]>([]);
-  
+
   const wsRef = useRef<WebSocket | null>(null);
-  const activeTracesRef = useRef<TraceStep[]>([]);
+  const accumulatedTraces = useRef<TraceStep[]>([]);
 
   const loadHistory = async () => {
     const { data } = await supabase
       .from("query_logs")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(6);
+      .limit(8);
     if (data) setPastQueries(data);
   };
 
@@ -47,27 +47,30 @@ export default function CopilotPage() {
   }, []);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://127.0.0.1:8000/ws/chat");
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL 
+      ? `${process.env.NEXT_PUBLIC_WS_URL}/ws/chat` 
+      : "ws://127.0.0.1:8000/ws/chat";
 
-    ws.onopen = () => console.log("Connected to GridOps Agent WebSocket");
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => console.log("Connected to GridOps LangGraph Pipeline");
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.type === "trace") {
-        const newTrace: TraceStep = { step: data.step, detail: data.detail, latency: data.latency };
-        activeTracesRef.current = [...activeTracesRef.current, newTrace];
-        setCurrentTraces([...activeTracesRef.current]);
+        const step: TraceStep = { step: data.step, detail: data.detail, latency: data.latency };
+        accumulatedTraces.current.push(step);
+        setLiveTraces([...accumulatedTraces.current]);
       } else if (data.type === "token") {
         setMessages((prev) => {
           const updated = [...prev];
-          const lastIndex = updated.length - 1;
-          
-          if (lastIndex >= 0 && updated[lastIndex].role === "ai") {
-            // FIX: Deep copy the object to prevent React Strict Mode double-mutation
-            updated[lastIndex] = {
-              ...updated[lastIndex],
-              content: updated[lastIndex].content + data.content
+          const last = updated[updated.length - 1];
+          if (last && last.role === "ai") {
+            updated[updated.length - 1] = {
+              ...last,
+              content: last.content + data.content,
+              traces: [...accumulatedTraces.current],
             };
           }
           return updated;
@@ -76,34 +79,36 @@ export default function CopilotPage() {
         setIsTyping(false);
         setMessages((prev) => {
           const updated = [...prev];
-          const lastIndex = updated.length - 1;
-          if (lastIndex >= 0 && updated[lastIndex].role === "ai") {
-            updated[lastIndex] = { ...updated[lastIndex], traces: [...activeTracesRef.current] };
+          const last = updated[updated.length - 1];
+          if (last && last.role === "ai") {
+            updated[updated.length - 1] = {
+              ...last,
+              traces: [...accumulatedTraces.current],
+            };
           }
           return updated;
         });
-        activeTracesRef.current = [];
+        accumulatedTraces.current = [];
+        setLiveTraces([]);
         loadHistory();
       }
     };
 
     wsRef.current = ws;
-    return () => {
-      ws.close();
-    };
+    return () => ws.close();
   }, []);
 
   const sendQuery = (queryText: string) => {
     if (!queryText.trim() || !wsRef.current || isTyping) return;
 
-    activeTracesRef.current = [];
-    setCurrentTraces([]);
+    accumulatedTraces.current = [];
+    setLiveTraces([]);
     setIsTyping(true);
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: queryText },
-      { role: "ai", content: "", traces: [] }
+      { role: "user", content: queryText, traces: [] },
+      { role: "ai", content: "", traces: [] },
     ]);
 
     wsRef.current.send(JSON.stringify({ message: queryText }));
@@ -112,105 +117,136 @@ export default function CopilotPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <header className="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-50">
-        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-6">
+      {/* Solid Dark Navbar */}
+      <header className="border-b border-slate-800 bg-slate-950 sticky top-0 z-50">
+        <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-3">
-              <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-bold text-lg bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-bold text-lg tracking-wider bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
                 GRIDOPS COMMAND
               </span>
             </div>
-            <nav className="flex space-x-1">
-              <Link href="/" className="px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-white transition">Dashboard</Link>
-              <Link href="/copilot" className="px-3 py-1.5 text-sm font-medium bg-slate-800 text-white rounded-md">AI Copilot</Link>
-              <Link href="/metrics" className="px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-white transition">Observability</Link>
+            <nav className="flex space-x-2">
+              <Link href="/" className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition">
+                Dashboard
+              </Link>
+              <Link href="/copilot" className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-slate-900 text-emerald-400 border border-slate-800 rounded-md">
+                AI Copilot
+              </Link>
+              <Link href="/metrics" className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-white transition">
+                Observability
+              </Link>
             </nav>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-xs py-1">
+              LangGraph WebSocket Active
+            </Badge>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1400px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-4rem)]">
-        
-        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/50 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center text-slate-300 text-sm">
-              <History className="w-4 h-4 mr-2 text-indigo-400" /> Recent Supabase Logs
+      {/* 3-Column Layout */}
+      <main className="flex-1 max-w-[1440px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-4rem)]">
+        {/* Left: History */}
+        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/60 rounded-xl p-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+            <h3 className="font-semibold flex items-center text-slate-300 text-xs tracking-wider uppercase">
+              <History className="w-3.5 h-3.5 mr-2 text-emerald-400" /> Supabase Audit Logs
             </h3>
-            <button onClick={loadHistory} className="text-slate-500 hover:text-slate-300">
+            <button onClick={loadHistory} className="text-slate-500 hover:text-slate-300 transition">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="space-y-2.5 overflow-y-auto pr-1">
-            {pastQueries.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => sendQuery(item.query)}
-                className="text-xs bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-slate-700 cursor-pointer transition"
-              >
-                <p className="text-slate-200 font-medium line-clamp-2">{item.query}</p>
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60 text-slate-500">
-                  <Badge variant="outline" className={item.cache_hit ? "border-emerald-500/30 text-emerald-400" : "border-indigo-500/30 text-indigo-400"}>
-                    {item.cache_hit ? "Cache Hit" : "Agent Run"}
-                  </Badge>
-                  <span>{item.latency_ms}ms</span>
+          <ScrollArea className="flex-1 pr-2">
+            <div className="space-y-2">
+              {pastQueries.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => sendQuery(item.query)}
+                  className="text-xs bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-emerald-500/40 cursor-pointer transition group"
+                >
+                  <p className="text-slate-300 font-medium line-clamp-2 group-hover:text-emerald-300 transition">
+                    {item.query}
+                  </p>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-900 text-[11px] text-slate-500">
+                    <Badge variant="outline" className={item.cache_hit ? "border-emerald-500/30 text-emerald-400" : "border-indigo-500/30 text-indigo-400"}>
+                      {item.cache_hit ? "Cache Hit" : "Agent Run"}
+                    </Badge>
+                    <span className="font-mono">{item.latency_ms}ms</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
 
-        <div className="lg:col-span-2 flex flex-col border border-slate-800 bg-slate-900 rounded-lg overflow-hidden">
-          <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
-            <div className="flex items-center">
-              <Bot className="w-5 h-5 text-indigo-400 mr-2" />
-              <h2 className="font-semibold text-slate-200">Supply Chain Reasoning Agent</h2>
+        {/* Center: Streaming Chat */}
+        <div className="lg:col-span-2 flex flex-col border border-slate-800 bg-slate-900/80 rounded-xl overflow-hidden shadow-2xl">
+          <div className="p-3.5 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Bot className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                Autonomous Supply Chain Copilot
+              </span>
             </div>
-            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-xs">
-              Live WebSocket
-            </Badge>
+            <span className="text-[11px] font-mono text-slate-500">Model: Gemini 2.5 Flash</span>
           </div>
 
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-5">
             <div className="space-y-6">
               {messages.length === 0 && (
-                <div className="text-center py-24 text-slate-500 space-y-3">
-                  <Bot className="w-12 h-12 mx-auto opacity-30 text-indigo-400" />
-                  <p className="text-sm">Ask any question to trigger the LangGraph supply chain pipeline.</p>
+                <div className="text-center py-20 text-slate-500 space-y-3">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-emerald-500 opacity-60" />
+                  </div>
+                  <p className="text-xs max-w-xs mx-auto text-slate-400">
+                    Ask any inventory, stockout window, or dark store telemetry question to invoke the LangGraph pipeline.
+                  </p>
                 </div>
               )}
 
               {messages.map((msg, idx) => (
                 <div key={idx} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
-                  <div className={`max-w-[90%] p-4 rounded-xl text-sm leading-relaxed ${
-                    msg.role === "user" ? "bg-indigo-600 text-white" : "bg-slate-950 text-slate-200 border border-slate-800 prose prose-invert max-w-none"
-                  }`}>
+                  <div
+                    className={`max-w-[90%] p-4 rounded-xl text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-emerald-600 text-slate-950 font-medium"
+                        : "bg-slate-950 text-slate-200 border border-slate-800"
+                    }`}
+                  >
                     {msg.role === "ai" ? (
-                      <ReactMarkdown>
-                        {msg.content || (isTyping && idx === messages.length - 1 ? "Analyzing telemetry..." : "")}
-                      </ReactMarkdown>
+                      <div className="prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown>
+                          {msg.content || (isTyping && idx === messages.length - 1 ? "Executing LangGraph pipeline..." : "")}
+                        </ReactMarkdown>
+                      </div>
                     ) : (
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                      <div>{msg.content}</div>
                     )}
                   </div>
 
-                  {msg.role === "ai" && ((msg.traces && msg.traces.length > 0) || (isTyping && idx === messages.length - 1 && currentTraces.length > 0)) && (
-                    <div className="mt-2.5 w-[90%] bg-slate-950/90 rounded-lg border border-slate-800 p-3 font-mono text-xs text-slate-400">
-                      <div className="flex items-center text-slate-500 mb-2 font-semibold">
-                        <Terminal className="w-3.5 h-3.5 mr-2 text-indigo-400" /> Agent Execution Trace
+                  {/* Agent Execution Trace Section */}
+                  {msg.role === "ai" && (msg.traces.length > 0 || (isTyping && idx === messages.length - 1 && liveTraces.length > 0)) && (
+                    <div className="mt-2.5 w-[90%] bg-slate-950 rounded-lg border border-slate-800/90 p-3 font-mono text-xs shadow-inner">
+                      <div className="flex items-center text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2">
+                        <Terminal className="w-3.5 h-3.5 mr-1.5 text-emerald-400" /> LangGraph Execution Trace
                       </div>
-                      {(msg.traces || currentTraces).map((tr, i) => (
-                        <div key={i} className="flex items-center justify-between py-1 border-b border-slate-900 last:border-0">
-                          <span className="flex items-center">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mr-2" />
-                            <span className="text-slate-300 font-semibold">{tr.step}</span>
-                            <span className="mx-2 text-slate-600">→</span>
-                            <span className="text-indigo-300">{tr.detail}</span>
-                          </span>
-                          <span className="text-slate-500 font-mono">{tr.latency}</span>
-                        </div>
-                      ))}
+                      <div className="space-y-1">
+                        {(msg.traces.length > 0 ? msg.traces : liveTraces).map((tr, i) => (
+                          <div key={i} className="flex items-center justify-between py-1 px-2 rounded bg-slate-900/60 border border-slate-800/40">
+                            <span className="flex items-center">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mr-2 shrink-0" />
+                              <span className="text-slate-200 font-semibold">{tr.step}</span>
+                              <span className="mx-2 text-slate-600">→</span>
+                              <span className="text-emerald-300/90">{tr.detail}</span>
+                            </span>
+                            {tr.latency && <span className="text-slate-500 text-[10px]">{tr.latency}</span>}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -218,44 +254,57 @@ export default function CopilotPage() {
             </div>
           </ScrollArea>
 
-          <div className="p-4 bg-slate-950 border-t border-slate-800">
+          <div className="p-3 bg-slate-950 border-t border-slate-800">
             <form onSubmit={(e) => { e.preventDefault(); sendQuery(input); }} className="flex space-x-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="e.g., Which dark store in Mumbai has high stockout risk?"
-                className="bg-slate-900 border-slate-800 focus-visible:ring-indigo-500 text-sm"
+                placeholder="e.g., Which store in Mumbai has critical stockout risk?"
+                className="bg-slate-900 border-slate-800 focus-visible:ring-emerald-500 text-sm h-11"
                 disabled={isTyping}
               />
-              <Button type="submit" disabled={isTyping || !input.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button type="submit" disabled={isTyping || !input.trim()} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold h-11 px-5">
                 <Send className="w-4 h-4" />
               </Button>
             </form>
           </div>
         </div>
 
-        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/50 rounded-lg p-4 space-y-4">
-          <h3 className="font-semibold flex items-center text-slate-300 text-sm">
-            <Activity className="w-4 h-4 mr-2 text-cyan-400" /> Live Architecture Metrics
+        {/* Right: Architecture Metrics */}
+        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/60 rounded-xl p-4 space-y-3">
+          <h3 className="font-semibold flex items-center text-slate-300 text-xs tracking-wider uppercase">
+            <Activity className="w-3.5 h-3.5 mr-2 text-cyan-400" /> Pipeline Topology
           </h3>
+
           <Card className="bg-slate-950 border-slate-800">
-            <CardContent className="p-4 flex items-center justify-between">
-              <span className="text-xs text-slate-400">Agent Pipeline</span>
-              <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/30">LangGraph v2</Badge>
+            <CardContent className="p-3.5 flex items-center justify-between">
+              <span className="text-xs text-slate-400">Agent Framework</span>
+              <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-mono text-[10px]">
+                LangGraph v2
+              </Badge>
             </CardContent>
           </Card>
+
           <Card className="bg-slate-950 border-slate-800">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-3.5 flex items-center justify-between">
               <span className="text-xs text-slate-400">Semantic Cache</span>
-              <span className="text-sm font-bold text-emerald-400 flex items-center">
-                <Zap className="w-3.5 h-3.5 mr-1" /> Active
+              <span className="text-xs font-bold text-emerald-400 flex items-center font-mono">
+                <Zap className="w-3 h-3 mr-1" /> Upstash Vector (0.97)
               </span>
             </CardContent>
           </Card>
+
           <Card className="bg-slate-950 border-slate-800">
-            <CardContent className="p-4 flex items-center justify-between">
+            <CardContent className="p-3.5 flex items-center justify-between">
               <span className="text-xs text-slate-400">Vector Store</span>
-              <span className="text-sm font-mono text-cyan-400">Qdrant Cloud</span>
+              <span className="text-xs font-mono text-cyan-400">Qdrant Cloud</span>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-950 border-slate-800">
+            <CardContent className="p-3.5 flex items-center justify-between">
+              <span className="text-xs text-slate-400">Live Simulator</span>
+              <span className="text-xs font-mono text-amber-400">APScheduler (30s)</span>
             </CardContent>
           </Card>
         </div>
