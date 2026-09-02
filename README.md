@@ -15,7 +15,23 @@
 
 **A production-grade, event-driven AI system that monitors inventory across hyperlocal dark stores in real time — and lets operations managers ask natural language questions to get instant, cited answers about stockout risks.**
 
-[Live Demo](#) · [Architecture](#architecture) · [Tech Stack](#tech-stack) · [Getting Started](#getting-started)
+## Live Demo
+
+### Login — Secure Operator Access
+![Login](docs/screenshots/login.png)
+
+### Dashboard — Real-Time Store Health Command Center
+![Dashboard](docs/screenshots/dashboard.png)
+
+### SKU Depletion Trend — Cross-Metro Stock Velocity
+![SKU Trend](docs/screenshots/sku-trend.png)
+
+### AI Copilot — LangGraph Agent with Reasoning Trace
+![Copilot](docs/screenshots/copilot.png)
+
+### Observability — Live Query Telemetry
+![Observability](docs/screenshots/observability.png) 
+· [Architecture](#architecture) · [Tech Stack](#tech-stack) · [Getting Started](#getting-started)
 
 </div>
 
