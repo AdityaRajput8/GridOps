@@ -5,3 +5,4 @@ upstash-vector
 supabase
 qdrant-client
 langchain-google-genai
+pydantic-settings
