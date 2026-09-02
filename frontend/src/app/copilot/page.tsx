@@ -116,9 +116,9 @@ export default function CopilotPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#050A18] text-slate-100 flex flex-col">
       {/* Solid Dark Navbar */}
-      <header className="border-b border-slate-800 bg-slate-950 sticky top-0 z-50">
+      <header className="border-b border-emerald-500/60 bg-[#050A18] sticky top-0 z-50 shadow-[0_1px_18px_rgba(16,185,129,0.08)]">
         <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-3">
@@ -150,7 +150,7 @@ export default function CopilotPage() {
       {/* 3-Column Layout */}
       <main className="flex-1 max-w-[1440px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-4rem)]">
         {/* Left: History */}
-        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/60 rounded-xl p-4 overflow-hidden">
+        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/60 rounded-xl p-4 overflow-hidden shadow-xl shadow-black/10">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
             <h3 className="font-semibold flex items-center text-slate-300 text-xs tracking-wider uppercase">
               <History className="w-3.5 h-3.5 mr-2 text-emerald-400" /> Supabase Audit Logs
@@ -172,7 +172,7 @@ export default function CopilotPage() {
                     {item.query}
                   </p>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-900 text-[11px] text-slate-500">
-                    <Badge variant="outline" className={item.cache_hit ? "border-emerald-500/30 text-emerald-400" : "border-indigo-500/30 text-indigo-400"}>
+                    <Badge variant="outline" className={item.cache_hit ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.18)]" : "border-amber-400/60 bg-amber-400/15 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.14)]"}>
                       {item.cache_hit ? "Cache Hit" : "Agent Run"}
                     </Badge>
                     <span className="font-mono">{item.latency_ms}ms</span>
@@ -184,7 +184,7 @@ export default function CopilotPage() {
         </div>
 
         {/* Center: Streaming Chat */}
-        <div className="lg:col-span-2 flex flex-col border border-slate-800 bg-slate-900/80 rounded-xl overflow-hidden shadow-2xl">
+        <div className="lg:col-span-2 flex flex-col border border-slate-800 bg-slate-900/80 rounded-xl overflow-hidden shadow-2xl shadow-black/30">
           <div className="p-3.5 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Bot className="w-4 h-4 text-emerald-400" />
@@ -195,7 +195,7 @@ export default function CopilotPage() {
             <span className="text-[11px] font-mono text-slate-500">Model: Gemini 2.5 Flash</span>
           </div>
 
-          <ScrollArea className="flex-1 p-5">
+          <ScrollArea className="scanlines flex-1 p-5">
             <div className="space-y-6">
               {messages.length === 0 && (
                 <div className="text-center py-20 text-slate-500 space-y-3">
@@ -214,7 +214,7 @@ export default function CopilotPage() {
                     className={`max-w-[90%] p-4 rounded-xl text-sm leading-relaxed ${
                       msg.role === "user"
                         ? "bg-emerald-600 text-slate-950 font-medium"
-                        : "bg-slate-950 text-slate-200 border border-slate-800"
+                        : "bg-slate-950 text-slate-200 border border-slate-800 font-mono text-[13px] shadow-inner"
                     }`}
                   >
                     {msg.role === "ai" ? (
@@ -234,16 +234,16 @@ export default function CopilotPage() {
                       <div className="flex items-center text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2">
                         <Terminal className="w-3.5 h-3.5 mr-1.5 text-emerald-400" /> LangGraph Execution Trace
                       </div>
-                      <div className="space-y-1">
+                      <div className="relative space-y-0 before:absolute before:bottom-4 before:left-[7px] before:top-4 before:w-px before:bg-gradient-to-b before:from-emerald-400/60 before:via-slate-700 before:to-transparent">
                         {(msg.traces.length > 0 ? msg.traces : liveTraces).map((tr, i) => (
-                          <div key={i} className="flex items-center justify-between py-1 px-2 rounded bg-slate-900/60 border border-slate-800/40">
-                            <span className="flex items-center">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mr-2 shrink-0" />
+                          <div key={i} className="relative flex items-center justify-between gap-3 py-2 pl-6 pr-2 transition-colors duration-300 hover:bg-slate-900/60">
+                            <CheckCircle2 className="absolute left-0 z-10 h-3.5 w-3.5 rounded-full bg-slate-950 text-emerald-400" />
+                            <span className="min-w-0">
                               <span className="text-slate-200 font-semibold">{tr.step}</span>
                               <span className="mx-2 text-slate-600">→</span>
                               <span className="text-emerald-300/90">{tr.detail}</span>
                             </span>
-                            {tr.latency && <span className="text-slate-500 text-[10px]">{tr.latency}</span>}
+                            {tr.latency && <span className="shrink-0 text-slate-500 text-[10px]">{tr.latency}</span>}
                           </div>
                         ))}
                       </div>
@@ -271,7 +271,7 @@ export default function CopilotPage() {
         </div>
 
         {/* Right: Architecture Metrics */}
-        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/60 rounded-xl p-4 space-y-3">
+        <div className="hidden lg:flex flex-col border border-slate-800 bg-slate-900/60 rounded-xl p-4 space-y-3 shadow-xl shadow-black/10">
           <h3 className="font-semibold flex items-center text-slate-300 text-xs tracking-wider uppercase">
             <Activity className="w-3.5 h-3.5 mr-2 text-cyan-400" /> Pipeline Topology
           </h3>

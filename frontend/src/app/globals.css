@@ -44,3 +44,71 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, rgb(16 185 129 / 0.18) 1px, transparent 1px);
+    background-size: 26px 26px;
+    animation: dot-grid-drift 22s linear infinite;
+  }
+
+  .emerald-glow {
+    box-shadow: 0 0 24px rgb(16 185 129 / 0.22), 0 0 56px rgb(16 185 129 / 0.08);
+  }
+
+  .emerald-text-glow {
+    text-shadow: 0 0 18px rgb(16 185 129 / 0.45);
+  }
+
+  .scanlines {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 3px,
+      rgb(16 185 129 / 0.035) 4px
+    );
+    mix-blend-mode: screen;
+  }
+
+  .marquee-track {
+    width: max-content;
+    animation: marquee 28s linear infinite;
+  }
+
+  .feature-float {
+    animation: feature-float 5s ease-in-out infinite;
+  }
+}
+
+@keyframes dot-grid-drift {
+  from { background-position: 0 0; }
+  to { background-position: 26px 26px; }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes feature-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-dot-grid,
+  .marquee-track,
+  .feature-float {
+    animation: none;
+  }
+}

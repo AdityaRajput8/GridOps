@@ -91,10 +91,10 @@ export default function DashboardPage() {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#050A18] text-slate-100 flex flex-col">
       {/* Solid Dark Navbar */}
-      <header className="border-b border-slate-800 bg-slate-950 sticky top-0 z-50">
-        <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
+      <header className="border-b border-emerald-500/60 bg-[#050A18] sticky top-0 z-50 shadow-[0_1px_18px_rgba(16,185,129,0.08)]">
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-8 h-[4.5rem] flex items-center justify-between">
           <div className="flex items-center space-x-8">
             <div className="flex items-center space-x-3">
               <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -131,10 +131,10 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-6 space-y-6">
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 lg:px-8 py-8 space-y-8">
         {/* KPI Row */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-slate-900/90 border-slate-800">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <Card className="bg-slate-900/90 border-slate-800 transition-all duration-500 hover:-translate-y-0.5 hover:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Stores</CardTitle>
               <Store className="h-4 w-4 text-emerald-400" />
@@ -145,7 +145,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/90 border-slate-800">
+          <Card className={`bg-slate-900/90 border-slate-800 transition-all duration-500 hover:-translate-y-0.5 hover:border-slate-700 ${kpis.critical_stockouts > 0 ? "emerald-glow border-emerald-500/40" : ""}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400">Critical Stockouts</CardTitle>
               <AlertTriangle className="h-4 w-4 text-rose-500" />
@@ -180,16 +180,16 @@ export default function DashboardPage() {
         </section>
 
         {/* Store Grid + Live Kafka Feed */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
+          <div className="lg:col-span-2 space-y-5">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">Dark Store Inventory Health</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {stores.map((store, idx) => (
                 <Card
                   key={idx}
-                  className={`bg-slate-900/90 border ${
+                  className={`bg-slate-900/90 border transition-all duration-500 ease-out hover:-translate-y-0.5 hover:bg-slate-900 ${
                     store.status === "Critical"
-                      ? "border-rose-500/60 shadow-lg shadow-rose-950/40 animate-pulse"
+                      ? "border-rose-500/60 shadow-lg shadow-rose-950/40"
                       : store.status === "Warning"
                       ? "border-amber-500/40"
                       : "border-slate-800"
@@ -204,7 +204,7 @@ export default function DashboardPage() {
                       variant="outline"
                       className={
                         store.status === "Critical"
-                          ? "border-rose-500 text-rose-400 bg-rose-500/10"
+                          ? "border-rose-500 text-rose-300 bg-rose-500/10 animate-pulse shadow-[0_0_0_3px_rgba(244,63,94,0.12),0_0_16px_rgba(244,63,94,0.4)]"
                           : store.status === "Warning"
                           ? "border-amber-500 text-amber-400 bg-amber-500/10"
                           : "border-emerald-500 text-emerald-400 bg-emerald-500/10"
@@ -239,7 +239,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Right: Kafka Stream */}
-          <div className="border border-slate-800 bg-slate-900/90 rounded-xl p-4 flex flex-col h-[560px]">
+          <div className="border border-slate-800 bg-slate-900/90 rounded-xl p-5 flex flex-col h-[560px] shadow-xl shadow-black/10 transition-all duration-500">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
               <h3 className="font-bold text-xs uppercase tracking-wider flex items-center">
                 <Radio className="w-4 h-4 mr-2 text-rose-500 animate-pulse" /> Live Kafka Stream
@@ -267,7 +267,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom: SKU Trend Chart with Dropdown */}
-        <section className="border border-slate-800 bg-slate-900/90 rounded-xl p-6">
+        <section className="border border-slate-800 bg-slate-900/90 rounded-xl p-7 shadow-xl shadow-black/10 transition-all duration-500">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 mb-6 gap-3">
             <div>
               <h3 className="text-base font-bold">12-Hour Stock Velocity & Depletion Forecast</h3>
