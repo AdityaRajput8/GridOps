@@ -56,7 +56,9 @@ export default function DashboardPage() {
 
   const fetchAllData = async (skuName = selectedSku) => {
     setIsRefreshing(true);
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+    const markdownUrl = configuredApiUrl?.match(/^\[(https?:\/\/[^\]]+)\]\(https?:\/\/[^)]+\)$/)?.[1];
+    const apiBase = (markdownUrl || configuredApiUrl || "https://gridops-6bte.onrender.com").replace(/\/$/, "");
 
     try {
       const [kpiRes, storesRes, eventsRes, trendRes] = await Promise.all([
